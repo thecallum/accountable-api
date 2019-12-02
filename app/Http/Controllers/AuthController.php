@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Http\Request;
 use App\User;
+use App\Exceptions\Handler;
+use Illuminate\Database\QueryException;
 
 class AuthController extends Controller
 {
@@ -28,7 +30,7 @@ class AuthController extends Controller
     {
         $credentials = request(['email', 'password']);
 
-          if (!$token = auth()->attempt($credentials)) {
+        if (!($token = auth()->attempt($credentials))) {
             return response()->json(['error' => 'Unauthorized'], 401);
         }
 
@@ -69,53 +71,73 @@ class AuthController extends Controller
         return response()->json([
             'access_token' => $token,
             'token_type' => 'bearer',
-            'expires_in' => auth()->factory()->getTTL() * 60,
+            'expires_in' =>
+                auth()
+                    ->factory()
+                    ->getTTL() * 60
         ]);
     }
 
     public function register(Request $request)
     {
-
-         $data = [
+        $data = [
             "name" => filter_var($request->name, FILTER_SANITIZE_STRING),
             "email" => filter_var($request->email, FILTER_SANITIZE_EMAIL),
-            "password" => filter_var($request->password, FILTER_SANITIZE_STRING),
+            "password" => filter_var(
+                $request->password,
+                FILTER_SANITIZE_STRING
+            ),
             "errors" => []
         ];
 
         if (!(strlen($data['name']) >= 2 && strlen($data['name']) <= 20)) {
             $data['errors']['name'] = 'Name must be between 2-20 characters';
-        } 
-        
+        }
 
-         if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
+        if (!filter_var($data['email'], FILTER_VALIDATE_EMAIL)) {
             $data['errors']['email'] = 'Enter a valid email.';
-        } 
-        
-        if (!(strlen($data['password']) >= 8 && strlen($data['password']) <= 100)) {
-            $data['errors']['password'] = 'Password must be between 8-100 characters.';
-        } 
+        }
+
+        if (
+            !(
+                strlen($data['password']) >= 8 &&
+                strlen($data['password']) <= 100
+            )
+        ) {
+            $data['errors']['password'] =
+                'Password must be between 8-100 characters.';
+        }
 
         // Check if valid data was sent
         if (sizeof($data['errors']) > 0) {
-            return response()->json(['message' => 'Invalid Data', "errors" => $data['errors']]);
+            return response()->json([
+                'message' => 'Invalid Data',
+                "errors" => $data['errors']
+            ], 400);
         }
 
         // hash password
         $data['password'] = bcrypt($data['password']);
 
-        $user = User::create([
-            "name" => $data['name'],
-            "email" => $data['email'],
-            "password" => $data['password'],
-        ]);
+        $user = new User();
+        $user->name = $data['name'];
+        $user->email = $data['email'];
+        $user->password = $data['password'];
 
-        if (!$user) {
-           return response()->json(['message' => 'Internal Error']); 
+        try {
+            $user->save();
+            $token = auth()->login($user);
+
+            return response()->json([
+                'message' => 'success',
+                "token" => $token
+            ], 400);
+
+        } catch (QueryException $e) {
+            $errorCode = $e->errorInfo[1];
+            if ($errorCode == 1062) return response()->json(['message' => 'Duplicate Entry'], 400);
+
+            return response()->json(['message' => 'Internal error'], 500);
         }
-
-        $token = auth()->login($user);
-
-        return response()->json(['message' => 'success', "token" => $token]); 
     }
 }

@@ -11,38 +11,26 @@
 |
  */
 
-// Route::get('/login', 'UserController@login');
-
-// Route::get('/person', function () {
-//     $person = [
-//         'first_name' => 'Sean',
-//         'last_name' => 'Pooley',
-//     ];
-
-//     return $person;
-// });
-
-Route::group([
-
-    'middleware' => 'api',
-    'prefix' => 'auth',
-
-], function ($router) {
-
+Route::group(['prefix' => 'auth'], function ($router) {
     Route::post('login', 'AuthController@login');
-    Route::post('logout', 'AuthController@logout');
-
-
+    Route::post('register', 'AuthController@register');
 });
 
-Route::get('/', function () {
-    $msg = [
-        "message" => 'success'
-    ];
+
+Route::group(['prefix' => 'tasks', 'middleware' => [
+    'auth'
+]], function ($router) {
+    Route::get('/', 'TaskController@index');
+});
+
+
+Route::any('*', function() {
+    return response()->json(['message' => 'Path does not exist'], 401);
+});
+
+
+// Route::get('/', function () {
+//     $msg = ["message" => 'success' ];
     
-    return $msg;
-})->middleware('auth');
-
-Route::get('/login', [ 'as' => 'login', 'uses' => 'AuthController@login']);
-
-Route::post('/auth/register', 'AuthController@register');
+//     return $msg;
+// })->middleware('auth');
