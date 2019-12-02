@@ -8,7 +8,7 @@ class TaskController extends Controller
 {
     public function index() {
         return [
-            'tasks' => []
+            'tasks' => ['task one', 'task two', 'task three']
         ];
     }
 }

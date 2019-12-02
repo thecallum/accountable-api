@@ -16,21 +16,6 @@ Route::group(['prefix' => 'auth'], function ($router) {
     Route::post('register', 'AuthController@register');
 });
 
-
-Route::group(['prefix' => 'tasks', 'middleware' => [
-    'auth'
-]], function ($router) {
+Route::group(['prefix' => 'tasks', 'middleware' => ['auth']], function ($router) {
     Route::get('/', 'TaskController@index');
 });
-
-
-Route::any('*', function() {
-    return response()->json(['message' => 'Path does not exist'], 401);
-});
-
-
-// Route::get('/', function () {
-//     $msg = ["message" => 'success' ];
-    
-//     return $msg;
-// })->middleware('auth');
